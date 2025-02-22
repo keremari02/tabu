@@ -262,8 +262,8 @@
             padding: 30px;
             border-radius: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 800px;
+            width: 80%;
+            max-width: 600px;
             margin: 0 auto;
             position: absolute;
             top: 50%;
@@ -528,16 +528,35 @@
     <!-- Takım İsimleri Modal -->
     <div class="modal" id="teamModal">
         <div class="modal-content">
-            <h2><i class="fas fa-users"></i> Takım İsimleri</h2>
+            <h2><i class="fas fa-users"></i> Oyuncu Kaydı</h2>
+            <div class="input-group">
+                <label for="email1">1. Takım E-posta:</label>
+                <input type="email" id="email1" placeholder="ornek@email.com" required>
+            </div>
+            <div class="input-group">
+                <label for="password1">1. Takım Şifre:</label>
+                <input type="password" id="password1" required>
+            </div>
             <div class="input-group">
                 <label for="team1">1. Takım İsmi:</label>
-                <input type="text" id="team1" placeholder="1. Takım">
+                <input type="text" id="team1" placeholder="1. Takım" required>
+            </div>
+            <div class="input-group">
+                <label for="email2">2. Takım E-posta:</label>
+                <input type="email" id="email2" placeholder="ornek@email.com" required>
+            </div>
+            <div class="input-group">
+                <label for="password2">2. Takım Şifre:</label>
+                <input type="password" id="password2" required>
             </div>
             <div class="input-group">
                 <label for="team2">2. Takım İsmi:</label>
-                <input type="text" id="team2" placeholder="2. Takım">
+                <input type="text" id="team2" placeholder="2. Takım" required>
             </div>
-            <button class="btn" onclick="showCategoryModal()">
+            <div id="errorMessage" style="color: red; margin-top: 10px; display: none;">
+                Lütfen tüm alanları doldurunuz!
+            </div>
+            <button class="btn" onclick="validateAndContinue()">
                 <i class="fas fa-arrow-right"></i>
                 Devam Et
             </button>
@@ -918,7 +937,18 @@
             updatePassButton();
             updateCard();
             startTimer();
+            
+            // Mikrofonu başlat
+            startMicrophone();
+        }
+
+        function startMicrophone() {
             recognition.start();
+            recognition.onend = function() {
+                if (gameActive) {
+                    recognition.start();
+                }
+            };
         }
 
         // Timer'ı başlat
@@ -1013,23 +1043,23 @@
         function endTurn() {
             clearInterval(timer);
             gameActive = false;
-            recognition.stop();
+            
+            // Mikrofonu sadece oyun bittiğinde kapat
+            if (team1Score >= 10 || team2Score >= 10) {
+                recognition.stop();
+            }
             
             document.getElementById('gameCard').style.display = 'none';
             document.getElementById('startRoundBtn').style.display = 'block';
             
-            // Sırayı diğer takıma ver
             currentTeam = currentTeam === 1 ? 2 : 1;
             
-            // Aktif takımı güncelle
             document.getElementById('team1Score').classList.toggle('active');
             document.getElementById('team2Score').classList.toggle('active');
             
-            // Başlat butonunu güncelle
             document.getElementById('startRoundBtn').textContent = 
                 `${currentTeam === 1 ? team1Name : team2Name}'in Sırası`;
 
-            // Oyun bitti mi kontrol et
             if (team1Score >= 10 || team2Score >= 10) {
                 showWinner();
             }
@@ -1105,6 +1135,48 @@
             if (recognition) {
                 recognition.stop();
             }
+        }
+
+        // Yeni form doğrulama fonksiyonu
+        function validateAndContinue() {
+            const email1 = document.getElementById('email1').value;
+            const password1 = document.getElementById('password1').value;
+            const team1 = document.getElementById('team1').value;
+            const email2 = document.getElementById('email2').value;
+            const password2 = document.getElementById('password2').value;
+            const team2 = document.getElementById('team2').value;
+            const errorMessage = document.getElementById('errorMessage');
+
+            if (!email1 || !password1 || !team1 || !email2 || !password2 || !team2) {
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            // E-posta formatı kontrolü
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email1) || !emailRegex.test(email2)) {
+                errorMessage.textContent = 'Lütfen geçerli e-posta adresleri giriniz!';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            // Şifre uzunluğu kontrolü
+            if (password1.length < 6 || password2.length < 6) {
+                errorMessage.textContent = 'Şifreler en az 6 karakter olmalıdır!';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            // Takım isimleri kontrolü
+            if (team1.trim().length < 2 || team2.trim().length < 2) {
+                errorMessage.textContent = 'Takım isimleri en az 2 karakter olmalıdır!';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            // Tüm kontroller başarılı, devam et
+            errorMessage.style.display = 'none';
+            showCategoryModal();
         }
     </script>
 </body>
