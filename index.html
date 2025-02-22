@@ -489,6 +489,47 @@
                 font-size: 1em;
             }
         }
+
+        .score-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .control-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .game-container {
+            margin: 80px auto 100px;
+        }
+
+        @media (max-width: 768px) {
+            .score-container {
+                padding: 5px;
+            }
+
+            .control-container {
+                padding: 5px;
+            }
+
+            .game-container {
+                margin: 70px auto 90px;
+                width: 95%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -528,33 +569,17 @@
     <!-- Takım İsimleri Modal -->
     <div class="modal" id="teamModal">
         <div class="modal-content">
-            <h2><i class="fas fa-users"></i> Oyuncu Kaydı</h2>
-            <div class="input-group">
-                <label for="email1">1. Takım E-posta:</label>
-                <input type="email" id="email1" placeholder="ornek@email.com" required>
-            </div>
-            <div class="input-group">
-                <label for="password1">1. Takım Şifre:</label>
-                <input type="password" id="password1" required>
-            </div>
+            <h2><i class="fas fa-users"></i> Takım İsimleri</h2>
             <div class="input-group">
                 <label for="team1">1. Takım İsmi:</label>
                 <input type="text" id="team1" placeholder="1. Takım" required>
-            </div>
-            <div class="input-group">
-                <label for="email2">2. Takım E-posta:</label>
-                <input type="email" id="email2" placeholder="ornek@email.com" required>
-            </div>
-            <div class="input-group">
-                <label for="password2">2. Takım Şifre:</label>
-                <input type="password" id="password2" required>
             </div>
             <div class="input-group">
                 <label for="team2">2. Takım İsmi:</label>
                 <input type="text" id="team2" placeholder="2. Takım" required>
             </div>
             <div id="errorMessage" style="color: red; margin-top: 10px; display: none;">
-                Lütfen tüm alanları doldurunuz!
+                Lütfen takım isimlerini giriniz!
             </div>
             <button class="btn" onclick="validateAndContinue()">
                 <i class="fas fa-arrow-right"></i>
@@ -610,10 +635,9 @@
 
     <!-- Oyun Ekranı -->
     <div id="gameScreen" style="display: none;">
-        <div class="game-container">
-            <!-- Skor Paneli -->
+        <div class="score-container">
             <div class="score-panel">
-                <div class="team-score active" id="team1Score">
+                <div class="team-score" id="team1Score">
                     <h3>Takım 1</h3>
                     <p>0 puan</p>
                 </div>
@@ -629,8 +653,9 @@
                     <p>0 puan</p>
                 </div>
             </div>
+        </div>
 
-            <!-- Tabu Kartı -->
+        <div class="game-container">
             <div class="game-card" id="gameCard">
                 <div class="card-content">
                     <div class="main-word">KELİME</div>
@@ -643,8 +668,9 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Kontrol Butonları -->
+        <div class="control-container">
             <div class="control-buttons">
                 <button class="game-btn correct" onclick="handleCorrect()">
                     <i class="fas fa-check"></i>
@@ -659,16 +685,6 @@
                     Yanlış
                 </button>
             </div>
-
-            <button class="btn start-round" onclick="startRound()" id="startRoundBtn">
-                <i class="fas fa-play"></i>
-                Turu Başlat
-            </button>
-
-            <button class="btn back-btn" onclick="backToMenu()">
-                <i class="fas fa-home"></i>
-                Ana Menü
-            </button>
         </div>
     </div>
 
@@ -863,6 +879,17 @@
             document.getElementById('mainMenu').style.display = 'none';
             document.getElementById('teamModal').style.display = 'flex';
             createMixedCategory();
+            
+            // Sayfa yüklendiğinde mikrofon iznini iste
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    })
+                    .catch(function(err) {
+                        alert('Oyun için mikrofon izni gereklidir!');
+                    });
+            }
         }
 
         // Kategori modalını göster
@@ -893,33 +920,37 @@
 
         // Konuşma tanıma sistemini kur
         function setupSpeechRecognition() {
-            if ('webkitSpeechRecognition' in window) {
-                recognition = new webkitSpeechRecognition();
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
                 recognition.continuous = true;
                 recognition.interimResults = true;
                 recognition.lang = 'tr-TR';
 
-                recognition.onresult = function(event) {
-                    const last = event.results.length - 1;
-                    const transcript = event.results[last][0].transcript.toUpperCase();
-                    
-                    // Yasaklı kelimeleri kontrol et
-                    const currentWord = categories[currentCategory][currentWordIndex];
-                    for (let forbidden of currentWord.forbidden) {
-                        if (transcript.includes(forbidden)) {
-                            // Yanlış ses efektini çal
-                            document.getElementById('wrongSound').play();
-                            handleWrong();
-                            break;
-                        }
+                recognition.onend = function() {
+                    if (document.getElementById('gameScreen').style.display !== 'none') {
+                        recognition.start();
                     }
                 };
 
                 recognition.onerror = function(event) {
+                    if (event.error === 'not-allowed') {
+                        alert('Oyun için mikrofon izni gereklidir!');
+                    }
                     const micStatus = document.querySelector('.mic-status');
                     micStatus.classList.add('error');
                     micStatus.innerHTML = '<i class="fas fa-microphone-slash"></i><span>Mikrofon Hatası</span>';
+                    
+                    // Hata durumunda yeniden başlatmayı dene
+                    setTimeout(() => {
+                        if (document.getElementById('gameScreen').style.display !== 'none') {
+                            recognition.start();
+                        }
+                    }, 1000);
                 };
+
+                recognition.start();
+            } else {
+                alert('Tarayıcınız ses tanıma özelliğini desteklemiyor!');
             }
         }
 
@@ -1137,44 +1168,24 @@
             }
         }
 
-        // Yeni form doğrulama fonksiyonu
+        // Form doğrulama fonksiyonunu güncelle
         function validateAndContinue() {
-            const email1 = document.getElementById('email1').value;
-            const password1 = document.getElementById('password1').value;
             const team1 = document.getElementById('team1').value;
-            const email2 = document.getElementById('email2').value;
-            const password2 = document.getElementById('password2').value;
             const team2 = document.getElementById('team2').value;
             const errorMessage = document.getElementById('errorMessage');
 
-            if (!email1 || !password1 || !team1 || !email2 || !password2 || !team2) {
+            if (!team1 || !team2) {
+                errorMessage.textContent = 'Lütfen takım isimlerini giriniz!';
                 errorMessage.style.display = 'block';
                 return;
             }
 
-            // E-posta formatı kontrolü
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email1) || !emailRegex.test(email2)) {
-                errorMessage.textContent = 'Lütfen geçerli e-posta adresleri giriniz!';
-                errorMessage.style.display = 'block';
-                return;
-            }
-
-            // Şifre uzunluğu kontrolü
-            if (password1.length < 6 || password2.length < 6) {
-                errorMessage.textContent = 'Şifreler en az 6 karakter olmalıdır!';
-                errorMessage.style.display = 'block';
-                return;
-            }
-
-            // Takım isimleri kontrolü
             if (team1.trim().length < 2 || team2.trim().length < 2) {
                 errorMessage.textContent = 'Takım isimleri en az 2 karakter olmalıdır!';
                 errorMessage.style.display = 'block';
                 return;
             }
 
-            // Tüm kontroller başarılı, devam et
             errorMessage.style.display = 'none';
             showCategoryModal();
         }
